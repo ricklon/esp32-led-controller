@@ -1,0 +1,139 @@
+<!-- index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 LED Controller</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .button {
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            padding: 15px 32px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+        .button:hover {
+            background-color: #45a049;
+        }
+        .button.active {
+            background-color: #357a38;
+        }
+        .slider {
+            width: 100%;
+            margin: 20px 0;
+        }
+        input[type="range"] {
+            width: 100%;
+        }
+        label {
+            display: block;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>ESP32 LED Controller</h1>
+        
+        <div>
+            <h2>Animation Type</h2>
+            <button class="button" onclick="setAnimation('VERTICAL_WAVE')" id="btnWave">Vertical Wave</button>
+            <button class="button" onclick="setAnimation('SPIRAL')" id="btnSpiral">Spiral</button>
+        </div>
+        
+        <div class="slider">
+            <h2>Animation Speed</h2>
+            <input type="range" min="0.1" max="2" step="0.1" value="1" 
+                   oninput="setSpeed(this.value)" id="speedSlider">
+            <label>Speed: <span id="speedValue">1.0</span>x</label>
+        </div>
+        
+        <div>
+            <h2>LED Configuration</h2>
+            <label>Number of LEDs:
+                <input type="number" min="1" max="300" value="50" 
+                       oninput="setLEDs(this.value)" id="ledCount">
+            </label>
+        </div>
+    </div>
+
+    <script>
+        let ws = new WebSocket(`ws://${window.location.hostname}/ws`);
+        let currentAnimation = 'VERTICAL_WAVE';
+        
+        ws.onopen = () => {
+            console.log('Connected to WebSocket');
+            document.getElementById('btnWave').classList.add('active');
+        };
+        
+        ws.onclose = () => {
+            console.log('WebSocket connection closed');
+            setTimeout(connectWebSocket, 2000);
+        };
+        
+        function setAnimation(type) {
+            ws.send(type);
+            currentAnimation = type;
+            
+            // Update button states
+            document.querySelectorAll('.button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            if (type === 'VERTICAL_WAVE') {
+                document.getElementById('btnWave').classList.add('active');
+            } else {
+                document.getElementById('btnSpiral').classList.add('active');
+            }
+        }
+        
+        function setSpeed(value) {
+            fetch(`/set_speed?value=${value}`)
+                .then(response => response.text())
+                .then(result => {
+                    document.getElementById('speedValue').textContent = value;
+                });
+        }
+        
+        function setLEDs(value) {
+            if (value > 0 && value <= 300) {
+                fetch(`/set_leds?num=${value}`)
+                    .then(response => response.text())
+                    .then(result => {
+                        console.log('LED count updated');
+                    });
+            }
+        }
+        
+        function connectWebSocket() {
+            ws = new WebSocket(`ws://${window.location.hostname}/ws`);
+            ws.onopen = () => {
+                console.log('Reconnected to WebSocket');
+                setAnimation(currentAnimation);
+            };
+        }
+    </script>
+</body>
+</html>
